@@ -43,7 +43,7 @@ public:
         }
         buffer1.copy(buffer,buffer1.length());
         memset(buffer,0,sizeof(buffer));
-        send(server, buffer1.c_str(), buffer1.length(), 0);
+        send(server, buffer, sizeof(buffer), 0);
         cout << "Mensaje enviado!" << endl;
     }
     void Recibir()
