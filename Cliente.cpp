@@ -31,24 +31,16 @@ public:
 
     void Recibir()
     {
-        vector<string> registros;
+        memset(buffer, 0, sizeof(buffer));
+        int bytesRecibidos = recv(server, buffer, sizeof(buffer) - 1, 0);
 
-        while (true)
+        if (bytesRecibidos > 0)
         {
-            memset(buffer, 0, sizeof(buffer));
-            int bytesRecibidos = recv(server, buffer, sizeof(buffer) - 1, 0);
-
-            if (bytesRecibidos <= 0)
-            {
-                break;
-            }
-
-            registros.push_back(buffer);
+            cout << "El servidor dice: " << buffer << endl;
         }
-
-        for (const string& registro : registros)
+        else
         {
-            cout << "El servidor dice: " << registro << endl;
+            cout << "Error al recibir datos del servidor." << endl;
         }
     }
     void CerrarSocket() {
