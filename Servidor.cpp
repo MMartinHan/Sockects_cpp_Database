@@ -1,7 +1,7 @@
 #include <iostream>
 #include <winsock2.h>
 #include <mysql.h>
-#include <windows.h>
+#include <vector>
 
 using namespace std;
 
@@ -44,32 +44,32 @@ public:
     }
 
     void Recibir() {
-        recv(client, buffer, sizeof(buffer), 0);
-        cout << "El cliente dice: " << buffer << endl;
-        string mensaje(buffer);
+        string mensaje;
+        char c;
+        while (true) {
+            recv(client, &c, sizeof(c), 0);
+            if (c == '\0') {
+                break;
+            }
+            mensaje += c;
+        }
+        cout << "El cliente dice: " << mensaje << endl;
         ProcesarMensaje(mensaje);
-        memset(buffer, 0, sizeof(buffer));
     }
 
-    void Enviar(const char* mensaje) {
-        send(client, mensaje, strlen(mensaje), 0);
-        memset(buffer, 0, sizeof(buffer));
-        cout << "Mensaje enviado!" << endl;
-    }
-
-    void CerrarSocket() {
-        closesocket(client);
-        closesocket(server);
-        cout << "Socket cerrado, cliente desconectado." << endl;
-        mysql_close(conn);
+    void Enviar(const string& mensaje) {
+        for (char c : mensaje) {
+            send(client, &c, sizeof(c), 0);
+        }
+        char terminador = '\0';
+        send(client, &terminador, sizeof(terminador), 0);
     }
 
     void ProcesarMensaje(const string& mensaje) {
-        // Dividir el mensaje en palabras separadas
         vector<string> palabras;
         string palabra;
         for (char c : mensaje) {
-            if (c == ' ') {
+            if (c == '|') {
                 palabras.push_back(palabra);
                 palabra.clear();
             }
@@ -85,38 +85,47 @@ public:
         }
 
         string comando = palabras[0];
+
         if (comando == "insertar") {
-            if (palabras.size() != 4) {
-                Enviar("Formato de mensaje incorrecto. Uso correcto: insertar <nombre> <apellido> <email>");
+            if (palabras.size() != 5) {
+                Enviar("Formato de mensaje incorrecto. Uso correcto: insertar|<id>|<nombre>|<apellido>|<email>");
                 return;
             }
 
-            string nombre = palabras[1];
-            string apellido = palabras[2];
-            string email = palabras[3];
+            int id = stoi(palabras[1]);
+            string nombre = palabras[2];
+            string apellido = palabras[3];
+            string email = palabras[4];
 
-            string query = "INSERT INTO empleado (nombre, apellido, email) VALUES ('" + nombre + "', '" + apellido + "', '" + email + "')";
-            mysql_query(conn, query.c_str());
-
-            Enviar("Empleado insertado correctamente.");
+            string query = "INSERT INTO empleado (id, nombre, apellido, email) VALUES (" + to_string(id) + ", '" + nombre + "', '" + apellido + "', '" + email + "')";
+            if (mysql_query(conn, query.c_str()) == 0) {
+                Enviar("Empleado insertado correctamente.");
+            }
+            else {
+                Enviar("Error al insertar empleado.");
+            }
         }
         else if (comando == "leer") {
             string query = "SELECT * FROM empleado";
-            mysql_query(conn, query.c_str());
-            MYSQL_RES* res = mysql_store_result(conn);
+            if (mysql_query(conn, query.c_str()) == 0) {
+                MYSQL_RES* res = mysql_store_result(conn);
 
-            string respuesta = "Datos de todos los empleados:\n";
-            while (MYSQL_ROW row = mysql_fetch_row(res)) {
-                respuesta += "ID: " + string(row[0]) + ", Nombre: " + string(row[1]) + ", Apellido: " + string(row[2]) + ", Email: " + string(row[3]) + "\n";
+                string respuesta = "Datos de todos los empleados:\n";
+                MYSQL_ROW row;
+                while ((row = mysql_fetch_row(res))) {
+                    respuesta += "ID: " + string(row[0]) + ", Nombre: " + string(row[1]) + ", Apellido: " + string(row[2]) + ", Email: " + string(row[3]) + "\n";
+                }
+
+                mysql_free_result(res);
+                Enviar(respuesta);
             }
-
-            mysql_free_result(res);
-
-            Enviar(respuesta.c_str());
+            else {
+                Enviar("Error al leer los datos de los empleados.");
+            }
         }
         else if (comando == "actualizar") {
             if (palabras.size() != 5) {
-                Enviar("Formato de mensaje incorrecto. Uso correcto: actualizar <id> <nombre> <apellido> <email>");
+                Enviar("Formato de mensaje incorrecto. Uso correcto: actualizar|<id>|<nombre>|<apellido>|<email>");
                 return;
             }
 
@@ -126,26 +135,38 @@ public:
             string email = palabras[4];
 
             string query = "UPDATE empleado SET nombre = '" + nombre + "', apellido = '" + apellido + "', email = '" + email + "' WHERE id = " + to_string(id);
-            mysql_query(conn, query.c_str());
-
-            Enviar("Empleado actualizado correctamente.");
+            if (mysql_query(conn, query.c_str()) == 0) {
+                Enviar("Empleado actualizado correctamente.");
+            }
+            else {
+                Enviar("Error al actualizar empleado.");
+            }
         }
         else if (comando == "eliminar") {
             if (palabras.size() != 2) {
-                Enviar("Formato de mensaje incorrecto. Uso correcto: eliminar <id>");
+                Enviar("Formato de mensaje incorrecto. Uso correcto: eliminar|<id>");
                 return;
             }
 
             int id = stoi(palabras[1]);
 
             string query = "DELETE FROM empleado WHERE id = " + to_string(id);
-            mysql_query(conn, query.c_str());
-
-            Enviar("Empleado eliminado correctamente.");
+            if (mysql_query(conn, query.c_str()) == 0) {
+                Enviar("Empleado eliminado correctamente.");
+            }
+            else {
+                Enviar("Error al eliminar empleado.");
+            }
         }
         else {
             Enviar("Comando inválido.");
         }
+    }
+
+    void CerrarSocket() {
+        closesocket(client);
+        cout << "Socket cerrado, cliente desconectado." << endl;
+        mysql_close(conn);
     }
 };
 
@@ -154,4 +175,6 @@ int main() {
     while (true) {
         Servidor->Recibir();
     }
+    Servidor->CerrarSocket();
+    return 0;
 }
