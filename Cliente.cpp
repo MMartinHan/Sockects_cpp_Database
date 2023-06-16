@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <winsock2.h>
 
 using namespace std;
@@ -8,7 +9,7 @@ public:
     WSADATA WSAData;
     SOCKET server;
     SOCKADDR_IN addr;
-    char buffer[1024];
+    char buffer[102400];
     Client()
     {
         cout<<"Conectando al servidor..."<<endl<<endl;
@@ -23,7 +24,7 @@ public:
     void Enviar()
     {
         string empleado[5];
-        string buffer;
+        string buffer1;
         empleado[0] = "insertar";
         cout << "Escribe el ID: ";
         cin >> empleado[1];
@@ -35,12 +36,14 @@ public:
         cin >> empleado[4];
 
         for (size_t i = 0; i < 5; ++i) {
-            buffer += empleado[i];
+            buffer1 += empleado[i];
             if (i < 4) {
-                buffer += ",";
+                buffer1 += ",";
             }
         }
-        send(server, buffer.c_str(), buffer.length(), 0);
+        buffer1.copy(buffer,buffer1.length());
+        memset(buffer,0,sizeof(buffer));
+        send(server, buffer1.c_str(), buffer1.length(), 0);
         cout << "Mensaje enviado!" << endl;
     }
     void Recibir()
