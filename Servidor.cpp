@@ -91,10 +91,12 @@ public:
             }
         }
         else if (comando == "leer") {
-            string query = "SELECT * FROM empleado";
+             string query = "SELECT * FROM empleado";
             if (mysql_query(conn, query.c_str()) == 0) {
                 MYSQL_RES* res = mysql_store_result(conn);
                 if (res) {
+                    string empleados;  // Variable para acumular los registros
+
                     MYSQL_ROW row;
                     while ((row = mysql_fetch_row(res))) {
                         string id = row[0];
@@ -103,15 +105,20 @@ public:
                         string email = row[3];
 
                         string empleado = "ID: " + id + ", Nombre: " + nombre + ", Apellido: " + apellido + ", Email: " + email;
-                        Enviar(empleado);
+                        empleados += empleado + "\n";  // Agregar el registro a la variable acumulada
                     }
+
+                    if (!empleados.empty()) {
+                        Enviar(empleados);  // Enviar todos los registros acumulados
+                    } else {
+                        Enviar("No se encontraron empleados.");
+                    }
+
                     mysql_free_result(res);
-                }
-                else {
+                } else {
                     Enviar("No se encontraron empleados.");
                 }
-            }
-            else {
+            } else {
                 Enviar("Error al leer empleados.");
             }
         }
