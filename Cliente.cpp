@@ -1,105 +1,81 @@
 #include <iostream>
-#include <cstring>
 #include <winsock2.h>
 
 using namespace std;
 
-class Client{
+class Client {
 public:
     WSADATA WSAData;
     SOCKET server;
     SOCKADDR_IN addr;
-    char buffer[102400];
-    Client()
-    {
-        cout<<"Conectando al servidor..."<<endl<<endl;
-        WSAStartup(MAKEWORD(2,0), &WSAData);
+    char buffer[1024];
+
+    Client() {
+        cout << "Conectando al servidor..." << endl << endl;
+        WSAStartup(MAKEWORD(2, 0), &WSAData);
         server = socket(AF_INET, SOCK_STREAM, 0);
         addr.sin_addr.s_addr = inet_addr("192.168.0.8");
         addr.sin_family = AF_INET;
         addr.sin_port = htons(5555);
-        connect(server, (SOCKADDR *)&addr, sizeof(addr));
+        connect(server, (SOCKADDR*)&addr, sizeof(addr));
         cout << "Conectado al Servidor!" << endl;
     }
-    void Enviar()
-    {
-        string empleado[5];
-        string buffer1;
-        empleado[0] = "insertar";
-        cout << "Escribe el ID: ";
-        cin >> empleado[1];
-        cout << "Escribe el Nombre: ";
-        cin >> empleado[2];
-        cout << "Escribe el Apellido: ";
-        cin >> empleado[3];
-        cout << "Escribe el Email: ";
-        cin >> empleado[4];
 
-        for (size_t i = 0; i < 5; ++i) {
-            buffer1 += empleado[i];
-            if (i < 4) {
-                buffer1 += ",";
-            }
-        }
-        buffer1.copy(buffer,buffer1.length());
-        memset(buffer,0,sizeof(buffer));
+    void Enviar() {
+        cout << "Escribe el mensaje a enviar: ";
+        cin.ignore(); // Ignorar el salto de línea anterior
+        cin.getline(this->buffer, sizeof(buffer));
         send(server, buffer, sizeof(buffer), 0);
+        memset(buffer, 0, sizeof(buffer));
         cout << "Mensaje enviado!" << endl;
     }
-    void Recibir()
-    {
+
+    void Recibir() {
         recv(server, buffer, sizeof(buffer), 0);
         cout << "El servidor dice: " << buffer << endl;
         memset(buffer, 0, sizeof(buffer));
     }
-    void CerrarSocket()
-    {
-       closesocket(server);
-       WSACleanup();
-       cout << "Socket cerrado." << endl << endl;
+
+    void CerrarSocket() {
+        closesocket(server);
+        WSACleanup();
+        cout << "Socket cerrado." << endl << endl;
     }
 };
 
-int main()
-{
-    Client *Cliente = new Client();
-    while(true)
-    {
+int main() {
+    Client* Cliente = new Client();
+    while (true) {
         int opcion;
-        do {
-            cout << "MENU:" << endl;
-            cout << "1. Ver registros" << endl;
-            cout << "2. Insertar registro" << endl;
-            cout << "3. Actualizar registro" << endl;
-            cout << "4. Eliminar registro" << endl;
-            cout << "0. Salir" << endl;
-            cout << "Ingrese una opcion: ";
-            cin >> opcion;
+        cout << "Seleccione una opción:" << endl;
+        cout << "1. Insertar empleado" << endl;
+        cout << "2. Leer todos los empleados" << endl;
+        cout << "3. Actualizar empleado" << endl;
+        cout << "4. Eliminar empleado" << endl;
+        cout << "5. Salir" << endl;
+        cout << "Opción: ";
+        cin >> opcion;
 
-            switch (opcion) {
-                case 1:
-                    Cliente->Enviar();
-                    Cliente->Recibir();
-                    break;
-                case 2:
-                    //insertarRegistro(conn);
-                    break;
-                case 3:
-                    //actualizarRegistro(conn);
-                    break;
-                case 4:
-                    //eliminarRegistro(conn);
-                    break;
-                case 0:
-                    cout << "Saliendo del programa." << endl;
-                    break;
-                default:
-                    cout << "Opcion no valida." << endl;
-            }
-
-            cout << endl;
-        } while (opcion != 0);
-
-        return 0;
+        switch (opcion) {
+        case 1:
+            Cliente->Enviar();
+            break;
+        case 2:
+            Cliente->Enviar();
+            Cliente->Recibir();
+            break;
+        case 3:
+            Cliente->Enviar();
+            break;
+        case 4:
+            Cliente->Enviar();
+            break;
+        case 5:
+            Cliente->CerrarSocket();
+            exit(0);
+        default:
+            cout << "Opción inválida. Intente nuevamente." << endl;
+            break;
+        }
     }
 }
