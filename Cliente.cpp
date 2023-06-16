@@ -21,11 +21,8 @@ public:
         cout << "Conectado al Servidor!" << endl;
     }
 
-    void Enviar() {
-        cout << "Escribe el mensaje a enviar: ";
-        cin.ignore(); // Ignorar el salto de línea anterior
-        cin.getline(this->buffer, sizeof(buffer));
-        send(server, buffer, sizeof(buffer), 0);
+    void Enviar(const char* mensaje) {
+        send(server, mensaje, strlen(mensaje), 0);
         memset(buffer, 0, sizeof(buffer));
         cout << "Mensaje enviado!" << endl;
     }
@@ -57,19 +54,50 @@ int main() {
         cin >> opcion;
 
         switch (opcion) {
-        case 1:
-            Cliente->Enviar();
+        case 1: {
+            cin.ignore();
+            string nombre, apellido, email;
+            cout << "Ingrese el nombre: ";
+            getline(cin, nombre);
+            cout << "Ingrese el apellido: ";
+            getline(cin, apellido);
+            cout << "Ingrese el email: ";
+            getline(cin, email);
+
+            string mensaje = "insertar " + nombre + " " + apellido + " " + email;
+            Cliente->Enviar(mensaje.c_str());
             break;
+        }
         case 2:
-            Cliente->Enviar();
+            Cliente->Enviar("leer");
             Cliente->Recibir();
             break;
-        case 3:
-            Cliente->Enviar();
+        case 3: {
+            int id;
+            cout << "Ingrese el ID del empleado a actualizar: ";
+            cin >> id;
+            cin.ignore();
+            string nombre, apellido, email;
+            cout << "Ingrese el nuevo nombre: ";
+            getline(cin, nombre);
+            cout << "Ingrese el nuevo apellido: ";
+            getline(cin, apellido);
+            cout << "Ingrese el nuevo email: ";
+            getline(cin, email);
+
+            string mensaje = "actualizar " + to_string(id) + " " + nombre + " " + apellido + " " + email;
+            Cliente->Enviar(mensaje.c_str());
             break;
-        case 4:
-            Cliente->Enviar();
+        }
+        case 4: {
+            int id;
+            cout << "Ingrese el ID del empleado a eliminar: ";
+            cin >> id;
+
+            string mensaje = "eliminar " + to_string(id);
+            Cliente->Enviar(mensaje.c_str());
             break;
+        }
         case 5:
             Cliente->CerrarSocket();
             exit(0);

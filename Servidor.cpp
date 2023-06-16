@@ -11,6 +11,7 @@ public:
     SOCKET server, client;
     SOCKADDR_IN serverAddr, clientAddr;
     char buffer[1024];
+    MYSQL* conn;
 
     Server() {
         WSAStartup(MAKEWORD(2, 0), &WSAData);
@@ -28,14 +29,26 @@ public:
         if ((client = accept(server, (SOCKADDR*)&clientAddr, &clientAddrSize)) != INVALID_SOCKET) {
             cout << "Cliente conectado!" << endl;
         }
+
+        conn = mysql_init(0);
+        conn = mysql_real_connect(conn, "localhost", "root", "", "prueba", 0, NULL, 0);
+        if (conn) {
+            system("color a");
+            cout << "Base de datos conectada con éxito." << endl;
+        }
+        else {
+            system("color c");
+            cout << "Error al conectar a la base de datos." << endl;
+            exit(0);
+        }
     }
 
-    string Recibir() {
+    void Recibir() {
         recv(client, buffer, sizeof(buffer), 0);
         cout << "El cliente dice: " << buffer << endl;
         string mensaje(buffer);
+        ProcesarMensaje(mensaje);
         memset(buffer, 0, sizeof(buffer));
-        return mensaje;
     }
 
     void Enviar(const char* mensaje) {
@@ -48,111 +61,97 @@ public:
         closesocket(client);
         closesocket(server);
         cout << "Socket cerrado, cliente desconectado." << endl;
+        mysql_close(conn);
+    }
+
+    void ProcesarMensaje(const string& mensaje) {
+        // Dividir el mensaje en palabras separadas
+        vector<string> palabras;
+        string palabra;
+        for (char c : mensaje) {
+            if (c == ' ') {
+                palabras.push_back(palabra);
+                palabra.clear();
+            }
+            else {
+                palabra += c;
+            }
+        }
+        palabras.push_back(palabra);
+
+        if (palabras.empty()) {
+            Enviar("Mensaje inválido.");
+            return;
+        }
+
+        string comando = palabras[0];
+        if (comando == "insertar") {
+            if (palabras.size() != 4) {
+                Enviar("Formato de mensaje incorrecto. Uso correcto: insertar <nombre> <apellido> <email>");
+                return;
+            }
+
+            string nombre = palabras[1];
+            string apellido = palabras[2];
+            string email = palabras[3];
+
+            string query = "INSERT INTO empleado (nombre, apellido, email) VALUES ('" + nombre + "', '" + apellido + "', '" + email + "')";
+            mysql_query(conn, query.c_str());
+
+            Enviar("Empleado insertado correctamente.");
+        }
+        else if (comando == "leer") {
+            string query = "SELECT * FROM empleado";
+            mysql_query(conn, query.c_str());
+            MYSQL_RES* res = mysql_store_result(conn);
+
+            string respuesta = "Datos de todos los empleados:\n";
+            while (MYSQL_ROW row = mysql_fetch_row(res)) {
+                respuesta += "ID: " + string(row[0]) + ", Nombre: " + string(row[1]) + ", Apellido: " + string(row[2]) + ", Email: " + string(row[3]) + "\n";
+            }
+
+            mysql_free_result(res);
+
+            Enviar(respuesta.c_str());
+        }
+        else if (comando == "actualizar") {
+            if (palabras.size() != 5) {
+                Enviar("Formato de mensaje incorrecto. Uso correcto: actualizar <id> <nombre> <apellido> <email>");
+                return;
+            }
+
+            int id = stoi(palabras[1]);
+            string nombre = palabras[2];
+            string apellido = palabras[3];
+            string email = palabras[4];
+
+            string query = "UPDATE empleado SET nombre = '" + nombre + "', apellido = '" + apellido + "', email = '" + email + "' WHERE id = " + to_string(id);
+            mysql_query(conn, query.c_str());
+
+            Enviar("Empleado actualizado correctamente.");
+        }
+        else if (comando == "eliminar") {
+            if (palabras.size() != 2) {
+                Enviar("Formato de mensaje incorrecto. Uso correcto: eliminar <id>");
+                return;
+            }
+
+            int id = stoi(palabras[1]);
+
+            string query = "DELETE FROM empleado WHERE id = " + to_string(id);
+            mysql_query(conn, query.c_str());
+
+            Enviar("Empleado eliminado correctamente.");
+        }
+        else {
+            Enviar("Comando inválido.");
+        }
     }
 };
 
-// Funciones del CRUD
-void InsertarEmpleado(MYSQL* conn, const string& nombre, const string& apellido, const string& email) {
-    string query = "INSERT INTO empleado (nombre, apellido, email) VALUES ('" + nombre + "', '" + apellido + "', '" + email + "')";
-    mysql_query(conn, query.c_str());
-    cout << "Empleado insertado correctamente." << endl;
-}
-
-void LeerEmpleados(MYSQL* conn) {
-    string query = "SELECT * FROM empleado";
-    mysql_query(conn, query.c_str());
-    MYSQL_RES* res = mysql_store_result(conn);
-
-    cout << "Datos de todos los empleados:" << endl;
-    while (MYSQL_ROW row = mysql_fetch_row(res)) {
-        cout << "ID: " << row[0] << ", Nombre: " << row[1] << ", Apellido: " << row[2] << ", Email: " << row[3] << endl;
-    }
-
-    mysql_free_result(res);
-}
-
-void ActualizarEmpleado(MYSQL* conn, int id, const string& nombre, const string& apellido, const string& email) {
-    string query = "UPDATE empleado SET nombre = '" + nombre + "', apellido = '" + apellido + "', email = '" + email + "' WHERE id = " + to_string(id);
-    mysql_query(conn, query.c_str());
-    cout << "Empleado actualizado correctamente." << endl;
-}
-
-void EliminarEmpleado(MYSQL* conn, int id) {
-    string query = "DELETE FROM empleado WHERE id = " + to_string(id);
-    mysql_query(conn, query.c_str());
-    cout << "Empleado eliminado correctamente." << endl;
-}
-
 int main() {
-    MYSQL* conn;
-    MYSQL_ROW row;
-    MYSQL_RES* res;
-
-    conn = mysql_init(0);
-    conn = mysql_real_connect(conn, "localhost", "root", "", "prueba", 0, NULL, 0);
-    if (conn) {
-        system("color a");
-        cout << "Database connected with success." << endl;
-    }
-    else {
-        system("color c");
-        cout << "Failed to connect database." << endl;
-        return 0;
-    }
-
     Server* Servidor = new Server();
     while (true) {
-        string mensaje = Servidor->Recibir();
-        string respuesta;
-
-        // Parsear mensaje y realizar operaciones CRUD según corresponda
-        if (mensaje == "insertar") {
-            string nombre, apellido, email;
-            cout << "Ingrese el nombre: ";
-            getline(cin, nombre);
-            cout << "Ingrese el apellido: ";
-            getline(cin, apellido);
-            cout << "Ingrese el email: ";
-            getline(cin, email);
-
-            InsertarEmpleado(conn, nombre, apellido, email);
-            respuesta = "Empleado insertado correctamente.";
-        }
-        else if (mensaje == "leer") {
-            LeerEmpleados(conn);
-            respuesta = "Datos de todos los empleados mostrados en el servidor.";
-        }
-        else if (mensaje == "actualizar") {
-            int id;
-            string nombre, apellido, email;
-            cout << "Ingrese el ID del empleado a actualizar: ";
-            cin >> id;
-            cin.ignore(); // Ignorar el salto de línea anterior
-            cout << "Ingrese el nuevo nombre: ";
-            getline(cin, nombre);
-            cout << "Ingrese el nuevo apellido: ";
-            getline(cin, apellido);
-            cout << "Ingrese el nuevo email: ";
-            getline(cin, email);
-
-            ActualizarEmpleado(conn, id, nombre, apellido, email);
-            respuesta = "Empleado actualizado correctamente.";
-        }
-        else if (mensaje == "eliminar") {
-            int id;
-            cout << "Ingrese el ID del empleado a eliminar: ";
-            cin >> id;
-
-            EliminarEmpleado(conn, id);
-            respuesta = "Empleado eliminado correctamente.";
-        }
-        else {
-            respuesta = "Comando inválido.";
-        }
-
-        Servidor->Enviar(respuesta.c_str());
+        Servidor->Recibir();
     }
-
-    mysql_close(conn);
-    return 0;
 }
