@@ -6,8 +6,8 @@ using namespace std;
 class Client{
 public:
     WSADATA WSAData;
-    SOCKET server, client;
-    SOCKADDR_IN serverAddr, clientAddr;
+    SOCKET server;
+    SOCKADDR_IN addr;
     char buffer[1024];
     Client()
     {
@@ -38,7 +38,7 @@ public:
             buffer += dato + " ";
         }
 
-        send(client, buffer.c_str(), buffer.length(), 0);
+        send(server, buffer.c_str(), buffer.length(), 0);
         cout << "Mensaje enviado!" << endl;
     }
     void Recibir()
