@@ -29,12 +29,28 @@ public:
         cout << "Mensaje enviado!" << endl;
     }
 
-    void Recibir() {
-        recv(server, buffer, sizeof(buffer), 0);
-        cout << "El servidor dice: " << buffer << endl;
-        memset(buffer, 0, sizeof(buffer));
-    }
+    void Recibir()
+    {
+        vector<string> registros;
 
+        while (true)
+        {
+            memset(buffer, 0, sizeof(buffer));
+            int bytesRecibidos = recv(server, buffer, sizeof(buffer) - 1, 0);
+
+            if (bytesRecibidos <= 0)
+            {
+                break;
+            }
+
+            registros.push_back(buffer);
+        }
+
+        for (const string& registro : registros)
+        {
+            cout << "El servidor dice: " << registro << endl;
+        }
+    }
     void CerrarSocket() {
         closesocket(server);
         WSACleanup();

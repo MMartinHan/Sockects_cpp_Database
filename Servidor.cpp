@@ -43,7 +43,7 @@ public:
     }
 
     void Enviar(const string& mensaje) {
-        strcpy_s(buffer, mensaje.c_str());
+        strcpy(buffer, mensaje.c_str());
         send(client, buffer, sizeof(buffer), 0);
         memset(buffer, 0, sizeof(buffer));
         cout << "Mensaje enviado!" << endl;
