@@ -34,10 +34,12 @@ public:
         cout << "Escribe el Email: ";
         cin >> empleado[4];
 
-        for (const string& dato : empleado) {
-            buffer += dato + " ";
+        for (size_t i = 0; i < 5; ++i) {
+            buffer += empleado[i];
+            if (i < 4) {
+                buffer += ",";
+            }
         }
-
         send(server, buffer.c_str(), buffer.length(), 0);
         cout << "Mensaje enviado!" << endl;
     }
