@@ -6,8 +6,8 @@ using namespace std;
 class Client{
 public:
     WSADATA WSAData;
-    SOCKET server;
-    SOCKADDR_IN addr;
+    SOCKET server, client;
+    SOCKADDR_IN serverAddr, clientAddr;
     char buffer[1024];
     Client()
     {

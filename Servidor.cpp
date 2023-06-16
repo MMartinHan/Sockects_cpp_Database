@@ -37,23 +37,10 @@ public:
     }
     void Enviar()
     {
-        string empleado[5];
-        string buffer;
-        empleado[0] = "insertar";
-        cout << "Escribe el ID: ";
-        cin >> empleado[1];
-        cout << "Escribe el Nombre: ";
-        cin >> empleado[2];
-        cout << "Escribe el Apellido: ";
-        cin >> empleado[3];
-        cout << "Escribe el Email: ";
-        cin >> empleado[4];
-
-        for (const string& dato : empleado) {
-            buffer += dato + " ";
-        }
-
-        send(client, buffer.c_str(), buffer.length(), 0);
+        cout<<"Escribe el mensaje a enviar: ";
+        cin>>this->buffer;
+        send(client, buffer, sizeof(buffer), 0);
+        memset(buffer, 0, sizeof(buffer));
         cout << "Mensaje enviado!" << endl;
     }
     void CerrarSocket()
