@@ -1,7 +1,7 @@
 #include <iostream>
 #include <winsock2.h>
 #include <mysql.h>
-#include <vector>
+#include <string>
 
 using namespace std;
 
@@ -38,64 +38,49 @@ public:
         }
         else {
             system("color c");
-            cout << "Error al conectar a la base de datos." << endl;
-            exit(0);
+            cout << "Error al conectar con la base de datos." << endl;
         }
-    }
-
-    void Recibir() {
-        string mensaje;
-        char c;
-        while (true) {
-            recv(client, &c, sizeof(c), 0);
-            if (c == '\0') {
-                break;
-            }
-            mensaje += c;
-        }
-        cout << "El cliente dice: " << mensaje << endl;
-        ProcesarMensaje(mensaje);
     }
 
     void Enviar(const string& mensaje) {
-        for (char c : mensaje) {
-            send(client, &c, sizeof(c), 0);
-        }
-        char terminador = '\0';
-        send(client, &terminador, sizeof(terminador), 0);
+        strcpy_s(buffer, mensaje.c_str());
+        send(client, buffer, sizeof(buffer), 0);
+        memset(buffer, 0, sizeof(buffer));
+        cout << "Mensaje enviado!" << endl;
+    }
+
+    void Recibir() {
+        recv(client, buffer, sizeof(buffer), 0);
+        string mensaje = buffer;
+        cout << "El cliente dice: " << mensaje << endl;
+        ProcesarMensaje(mensaje);
+        memset(buffer, 0, sizeof(buffer));
     }
 
     void ProcesarMensaje(const string& mensaje) {
-        vector<string> palabras;
-        string palabra;
-        for (char c : mensaje) {
-            if (c == '|') {
-                palabras.push_back(palabra);
-                palabra.clear();
-            }
-            else {
-                palabra += c;
-            }
-        }
-        palabras.push_back(palabra);
-
-        if (palabras.empty()) {
-            Enviar("Mensaje inválido.");
+        size_t pos = mensaje.find("|");
+        if (pos == string::npos) {
+            Enviar("Formato de mensaje incorrecto.");
             return;
         }
 
-        string comando = palabras[0];
+        string comando = mensaje.substr(0, pos);
+        string parametros = mensaje.substr(pos + 1);
 
         if (comando == "insertar") {
-            if (palabras.size() != 5) {
+            size_t pos1 = parametros.find("|");
+            size_t pos2 = parametros.find("|", pos1 + 1);
+            size_t pos3 = parametros.find("|", pos2 + 1);
+
+            if (pos1 == string::npos || pos2 == string::npos || pos3 == string::npos) {
                 Enviar("Formato de mensaje incorrecto. Uso correcto: insertar|<id>|<nombre>|<apellido>|<email>");
                 return;
             }
 
-            int id = stoi(palabras[1]);
-            string nombre = palabras[2];
-            string apellido = palabras[3];
-            string email = palabras[4];
+            int id = stoi(parametros.substr(0, pos1));
+            string nombre = parametros.substr(pos1 + 1, pos2 - pos1 - 1);
+            string apellido = parametros.substr(pos2 + 1, pos3 - pos2 - 1);
+            string email = parametros.substr(pos3 + 1);
 
             string query = "INSERT INTO empleado (id, nombre, apellido, email) VALUES (" + to_string(id) + ", '" + nombre + "', '" + apellido + "', '" + email + "')";
             if (mysql_query(conn, query.c_str()) == 0) {
@@ -109,30 +94,41 @@ public:
             string query = "SELECT * FROM empleado";
             if (mysql_query(conn, query.c_str()) == 0) {
                 MYSQL_RES* res = mysql_store_result(conn);
+                if (res) {
+                    MYSQL_ROW row;
+                    while ((row = mysql_fetch_row(res))) {
+                        string id = row[0];
+                        string nombre = row[1];
+                        string apellido = row[2];
+                        string email = row[3];
 
-                string respuesta = "Datos de todos los empleados:\n";
-                MYSQL_ROW row;
-                while ((row = mysql_fetch_row(res))) {
-                    respuesta += "ID: " + string(row[0]) + ", Nombre: " + string(row[1]) + ", Apellido: " + string(row[2]) + ", Email: " + string(row[3]) + "\n";
+                        string empleado = "ID: " + id + ", Nombre: " + nombre + ", Apellido: " + apellido + ", Email: " + email;
+                        Enviar(empleado);
+                    }
+                    mysql_free_result(res);
                 }
-
-                mysql_free_result(res);
-                Enviar(respuesta);
+                else {
+                    Enviar("No se encontraron empleados.");
+                }
             }
             else {
-                Enviar("Error al leer los datos de los empleados.");
+                Enviar("Error al leer empleados.");
             }
         }
         else if (comando == "actualizar") {
-            if (palabras.size() != 5) {
+            size_t pos1 = parametros.find("|");
+            size_t pos2 = parametros.find("|", pos1 + 1);
+            size_t pos3 = parametros.find("|", pos2 + 1);
+
+            if (pos1 == string::npos || pos2 == string::npos || pos3 == string::npos) {
                 Enviar("Formato de mensaje incorrecto. Uso correcto: actualizar|<id>|<nombre>|<apellido>|<email>");
                 return;
             }
 
-            int id = stoi(palabras[1]);
-            string nombre = palabras[2];
-            string apellido = palabras[3];
-            string email = palabras[4];
+            int id = stoi(parametros.substr(0, pos1));
+            string nombre = parametros.substr(pos1 + 1, pos2 - pos1 - 1);
+            string apellido = parametros.substr(pos2 + 1, pos3 - pos2 - 1);
+            string email = parametros.substr(pos3 + 1);
 
             string query = "UPDATE empleado SET nombre = '" + nombre + "', apellido = '" + apellido + "', email = '" + email + "' WHERE id = " + to_string(id);
             if (mysql_query(conn, query.c_str()) == 0) {
@@ -143,12 +139,7 @@ public:
             }
         }
         else if (comando == "eliminar") {
-            if (palabras.size() != 2) {
-                Enviar("Formato de mensaje incorrecto. Uso correcto: eliminar|<id>");
-                return;
-            }
-
-            int id = stoi(palabras[1]);
+            int id = stoi(parametros);
 
             string query = "DELETE FROM empleado WHERE id = " + to_string(id);
             if (mysql_query(conn, query.c_str()) == 0) {
@@ -159,22 +150,23 @@ public:
             }
         }
         else {
-            Enviar("Comando inválido.");
+            Enviar("Comando desconocido.");
         }
     }
 
     void CerrarSocket() {
         closesocket(client);
         cout << "Socket cerrado, cliente desconectado." << endl;
-        mysql_close(conn);
     }
 };
 
 int main() {
     Server* Servidor = new Server();
+
     while (true) {
         Servidor->Recibir();
     }
+
     Servidor->CerrarSocket();
     return 0;
 }
